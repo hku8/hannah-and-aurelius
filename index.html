@@ -1,488 +1,199 @@
 <!DOCTYPE html>
-<html lang="en" class="overflow-x-hidden">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="version" content="1.1">
-    <title>Hannah & Aurelius Wedding</title>
+    <title>H&A | The Wedding Editorial</title>
     
-    <!-- Load Tailwind CSS -->
+    <!-- Frameworks & Fonts -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Load React, ReactDOM, and Babel -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Load Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Pinyon+Script&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs - Individual modules must be script type="module" -->
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800&family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,700&family=Pinyon+Script&display=swap');
-        
+        body {
+            background-color: #f8f8f8;
+            color: #1a1a1a;
+            font-family: 'Montserrat', sans-serif;
+            overflow-x: hidden;
+        }
         .font-serif { font-family: 'Playfair Display', serif; }
-        .font-sans { font-family: 'Montserrat', sans-serif; }
+        .font-script { font-family: 'Pinyon Script', cursive; }
         
-        .ampersand {
-            font-family: 'Pinyon Script', cursive;
-            display: inline-block;
-            text-transform: none;
-            line-height: 1;
-            margin: 0 0.1em;
-            transform: scale(1.4) translateY(0.05em);
-            font-weight: 400;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
-        
-        body::-webkit-scrollbar { display: none; }
-        body { 
-            -ms-overflow-style: none; 
-            scrollbar-width: none; 
-            overflow-x: hidden; 
-            width: 100%;
-            background-color: #fdf7f7;
-            color: #452b2b;
-        }
-        
-        .full-bleed-image {
-            width: 100vw;
-            margin-left: calc(50% - 50vw);
-            margin-right: calc(50% - 50vw);
-            max-width: 100vw;
+        /* Custom scrollbar for an editorial feel */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #f8f8f8; }
+        ::-webkit-scrollbar-thumb { background: #1a1a1a; }
+
+        .reveal-text {
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+            animation: textUp 1.2s cubic-bezier(0.77, 0, 0.175, 1);
         }
 
-        .thin-hr {
-            height: 1.5px;
-            background-color: #d9c5c7;
-            border: none;
+        @keyframes textUp {
+            0% { transform: translateY(100%); }
+            100% { transform: translateY(0); }
         }
 
-        /* Sophisticated Nav Transitions */
-        .nav-item-transition {
-            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        .img-zoom {
+            overflow: hidden;
+        }
+        .img-zoom img {
+            transition: transform 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        .img-zoom:hover img {
+            transform: scale(1.05);
         }
     </style>
 </head>
-<body class="overflow-x-hidden">
+<body>
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
-        
-        const Icon = ({ name, size = 24, strokeWidth = 2, className = "" }) => {
-            const iconRef = useRef(null);
+    <script type="text/babel" data-type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Setup
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'wedding-editorial-v1';
+
+        const { useState, useEffect } = React;
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [scrolled, setScrolled] = useState(false);
+
             useEffect(() => {
-                if (window.lucide && iconRef.current) {
-                    const iconAttr = name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
-                    const i = document.createElement('i');
-                    i.setAttribute('data-lucide', iconAttr);
-                    i.style.width = `${size}px`;
-                    i.style.height = `${size}px`;
-                    i.className = className;
-                    iconRef.current.innerHTML = '';
-                    iconRef.current.appendChild(i);
-                    window.lucide.createIcons({
-                        attrs: { 'stroke-width': strokeWidth, 'width': size, 'height': size }
-                    });
-                }
-            }, [name, size, strokeWidth, className]);
-            return <span ref={iconRef} className="inline-flex items-center justify-center" />;
-        };
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Auth initialization failed", error);
+                    }
+                };
+                initAuth();
+                
+                const unsubscribe = onAuthStateChanged(auth, setUser);
 
-        const CherryBlossomSVG = ({ className = "" }) => (
-            <div className={`relative ${className}`}>
-                {[0, 72, 144, 216, 288].map((deg) => (
-                    <div 
-                        key={deg} 
-                        className="absolute inset-0 origin-center" 
-                        style={{ transform: `rotate(${deg}deg) translateY(-25%)` }}
-                    >
-                        <svg width="100%" height="100%" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 22 C 16 16, 18 8, 14 4 C 13 5.5, 11 5.5, 10 4 C 6 8, 8 16, 12 22 Z" />
-                        </svg>
-                    </div>
-                ))}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[15%] h-[15%] rounded-full bg-[#d49999]/40" />
-            </div>
-        );
-
-        const LineArtCherryBlossom = ({ className = "" }) => (
-            <svg 
-                viewBox="0 0 100 100" 
-                className={className}
-                fill="none" 
-                xmlns="http://www.w3.org/2000/svg"
-            >
-                {[0, 72, 144, 216, 288].map((deg) => (
-                    <g key={deg} style={{ transform: `rotate(${deg}deg)`, transformOrigin: '50% 50%' }}>
-                        <path 
-                            d="M50 50 C 55 35, 65 25, 50 15 C 35 25, 45 35, 50 50 Z" 
-                            stroke="currentColor" 
-                            strokeWidth="2.5" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                        />
-                        <line x1="50" y1="35" x2="50" y2="42" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
-                    </g>
-                ))}
-                <circle cx="50" cy="50" r="4" stroke="currentColor" strokeWidth="2.5" />
-            </svg>
-        );
-
-        const ExactFloralEmblem = ({ className = "" }) => (
-            <svg 
-                viewBox="0 0 100 100" 
-                className={className}
-                fill="none" 
-                xmlns="http://www.w3.org/2000/svg"
-            >
-                <path d="M50 42C50 25 35 15 25 25C15 35 25 50 42 50" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"/>
-                <path d="M58 50C75 50 85 35 75 25C65 15 50 25 50 42" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"/>
-                <path d="M50 58C50 75 65 85 75 75C85 65 75 50 58 50" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"/>
-                <path d="M42 50C25 50 15 65 25 75C35 85 50 75 50 58" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"/>
-                <circle cx="50" cy="50" r="7" stroke="currentColor" strokeWidth="3.5"/>
-                <line x1="50" y1="36" x2="50" y2="43" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                <line x1="50" y1="64" x2="50" y2="57" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                <line x1="36" y1="50" x2="43" y2="50" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                <line x1="64" y1="50" x2="57" y2="50" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                <line x1="56" y1="44" x2="61" y2="39" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                <line x1="44" y1="44" x2="39" y2="39" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                <line x1="56" y1="56" x2="61" y2="61" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                <line x1="44" y1="56" x2="39" y2="61" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-            </svg>
-        );
-
-        const ScatteredBlossoms = () => {
-            const items = [
-                { top: '10%', left: '5%', rot: 45, scale: 1, type: 'flower', opacity: 0.6 },
-                { top: '15%', left: '85%', rot: -15, scale: 0.8, type: 'petal', opacity: 0.8 },
-                { top: '35%', left: '8%', rot: 75, scale: 0.6, type: 'petal', opacity: 0.5 },
-                { top: '45%', left: '92%', rot: 20, scale: 1.2, type: 'flower', opacity: 0.4 },
-                { top: '65%', left: '12%', rot: -45, scale: 0.9, type: 'petal', opacity: 0.7 },
-                { top: '25%', left: '75%', rot: 110, scale: 0.7, type: 'petal', opacity: 0.6 },
-                { top: '80%', left: '88%', rot: -30, scale: 0.8, type: 'flower', opacity: 0.5 },
-                { top: '85%', left: '15%', rot: 60, scale: 0.8, type: 'petal', opacity: 0.6 },
-                { top: '95%', left: '50%', rot: 15, scale: 1.1, type: 'flower', opacity: 0.3 },
-            ];
-            return (
-                <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden min-h-full">
-                    {items.map((item, i) => (
-                        <div key={i} className="absolute text-[#e6baba]" style={{ top: item.top, left: item.left, transform: `rotate(${item.rot}deg) scale(${item.scale})`, opacity: item.opacity }}>
-                            {item.type === 'flower' ? (
-                                <CherryBlossomSVG className="w-12 h-12 -mt-6 -ml-6" />
-                            ) : (
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22 C 18 16, 20 6, 15 2 C 13.5 4, 10.5 4, 9 2 C 4 6, 6 16, 12 22 Z" /></svg>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            );
-        };
-
-        const Home = ({ onNavigate }) => {
-            const [designVariant, setDesignVariant] = useState('minimalist'); // Options: 'minimalist', 'classical', 'modern-editorial'
-
-            const HeaderContent = () => {
-                switch (designVariant) {
-                    case 'classical':
-                        return (
-                            <div className="mb-12 px-6 flex flex-col items-center">
-                                <Icon name="Flower" size={20} className="text-[#d9c5c7] mb-6" strokeWidth={1.5} />
-                                <p className="text-[10px] tracking-[0.5em] text-[#8a7373] mb-6 uppercase font-medium">The Wedding Celebration Of</p>
-                                <div className="flex flex-col md:flex-row items-center gap-2 md:gap-8 mb-4">
-                                    <h1 className="text-5xl md:text-6xl font-serif italic text-[#452b2b] tracking-tight">Hannah</h1>
-                                    <span className="ampersand text-4xl text-[#d9c5c7]">&</span>
-                                    <h1 className="text-5xl md:text-6xl font-serif italic text-[#452b2b] tracking-tight">Aurelius</h1>
-                                </div>
-                                <div className="w-16 h-[1px] bg-[#d9c5c7] my-6"></div>
-                                <p className="font-serif text-lg text-[#452b2b] tracking-[0.1em]">SUNDAY, JUNE TWENTY-EIGHTH, TWENTY TWENTY-SIX</p>
-                            </div>
-                        );
-                    case 'modern-editorial':
-                        return (
-                            <div className="mb-12 px-6 w-full max-w-4xl border-l-2 border-[#d9c5c7] py-4 text-left md:ml-12">
-                                <p className="text-[11px] font-bold tracking-[0.3em] text-[#452b2b] mb-1 uppercase">EST. 2026</p>
-                                <h1 className="text-6xl md:text-8xl font-black text-[#452b2b] tracking-tighter leading-none mb-4 uppercase">
-                                    HANNAH<br/>
-                                    <span className="text-[#d9c5c7]">&</span> AURELIUS
-                                </h1>
-                                <p className="font-sans font-bold text-xs md:text-sm tracking-[0.2em] text-[#8a7373] uppercase bg-white inline-block px-2 py-1">Save The Date: June 28, 2026</p>
-                            </div>
-                        );
-                    default: // minimalist
-                        return (
-                            <div className="mb-12 px-6">
-                                <p className="text-xs md:text-sm tracking-[0.25em] text-[#8a7373] mb-4 uppercase font-bold">The Wedding Of</p>
-                                <h1 className="text-4xl md:text-5xl lg:text-7xl font-extrabold text-[#452b2b] tracking-wider mb-4 uppercase">
-                                    HANNAH <span className="ampersand text-5xl md:text-6xl">&</span> AURELIUS
-                                </h1>
-                                <p className="font-serif italic text-xl md:text-2xl text-[#452b2b] mt-4">June 28, 2026</p>
-                            </div>
-                        );
-                }
-            };
+                const handleScroll = () => setScrolled(window.scrollY > 50);
+                window.addEventListener('scroll', handleScroll);
+                return () => {
+                    window.removeEventListener('scroll', handleScroll);
+                    unsubscribe();
+                };
+            }, []);
 
             return (
-                <div className="flex flex-col items-center text-center animate-fade-in">
-                    {/* Design Explorer Toggle */}
-                    <div className="mb-12 flex gap-4 p-1 bg-[#eee0e0]/30 rounded-full border border-[#d9c5c7]/20 sticky top-20 z-40 backdrop-blur-md">
-                        {['minimalist', 'classical', 'modern-editorial'].map((v) => (
-                            <button 
-                                key={v}
-                                onClick={() => setDesignVariant(v)}
-                                className={`px-4 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded-full transition-all ${designVariant === v ? 'bg-[#452b2b] text-white' : 'text-[#8a7373] hover:text-[#452b2b]'}`}
-                            >
-                                {v.replace('-', ' ')}
-                            </button>
-                        ))}
-                    </div>
-
-                    <HeaderContent />
-                    
-                    <div className="full-bleed-image mb-24 overflow-hidden">
-                        <img 
-                            src="https://images.unsplash.com/photo-1522383225653-ed111181a951?auto=format&fit=crop&w=2000&q=80" 
-                            alt="Cherry Blossoms" 
-                            className="w-full h-auto block object-cover" 
-                        />
-                    </div>
-
-                    <div className="w-full max-w-4xl mx-auto px-6 mb-24">
-                        <div className="flex justify-center mb-10">
-                            <ExactFloralEmblem className="w-14 h-14 text-[#d9c5c7]" />
-                        </div>
-                        <h2 className="font-serif italic text-2xl md:text-3xl text-[#452b2b] mb-6 tracking-tight opacity-90">Save the Date</h2>
-                        <p className="font-serif text-[#8a7373] text-base md:text-lg mb-16 max-w-md mx-auto leading-relaxed">
-                            Join us as we celebrate our love amidst the cherry blossoms of Kyoto.
-                        </p>
-                        <div className="thin-hr mb-12 max-w-2xl mx-auto"></div>
-                        <div className="flex flex-row items-center justify-center max-w-2xl mx-auto">
-                            <div className="flex-1 text-center px-2">
-                                <p className="text-[9px] md:text-[11px] tracking-[0.3em] md:tracking-[0.4em] text-[#8a7373] uppercase mb-2 font-bold">When</p>
-                                <p className="font-serif text-sm md:text-xl text-[#452b2b] tracking-wide font-medium">Sunday, June 28th</p>
-                            </div>
-                            <div className="block w-[1px] h-8 md:h-10 bg-[#d9c5c7]"></div>
-                            <div className="flex-1 text-center px-2">
-                                <p className="text-[9px] md:text-[11px] tracking-[0.3em] md:tracking-[0.4em] text-[#8a7373] uppercase mb-2 font-bold">Where</p>
-                                <p className="font-serif text-sm md:text-xl text-[#452b2b] tracking-wide font-medium">The Garden Pavilion</p>
-                            </div>
-                        </div>
-                        <div className="thin-hr mt-12 max-w-2xl mx-auto"></div>
-                    </div>
-
-                    <div className="max-w-xl mx-auto px-10 md:px-16 mb-24 mt-12">
-                        <div className="flex justify-center mb-10">
-                            <LineArtCherryBlossom className="w-12 h-12 text-[#d9c5c7]" />
-                        </div>
-                        <p className="text-[10px] md:text-[11px] tracking-[0.4em] text-[#8a7373] mb-6 uppercase font-bold opacity-80">We Are Getting Married</p>
-                        
-                        <div className="flex items-center justify-center gap-4 md:gap-5 mb-5">
-                            <span className="font-serif text-lg md:text-2xl text-[#452b2b] font-medium uppercase tracking-[0.2em] md:tracking-[0.25em]">HANNAH</span>
-                            <Icon name="Heart" size={10} className="fill-[#8a7373] text-[#8a7373] opacity-40" />
-                            <span className="font-serif text-lg md:text-2xl text-[#452b2b] font-medium uppercase tracking-[0.2em] md:tracking-[0.25em]">AURELIUS</span>
-                        </div>
-                        
-                        <p className="font-serif text-[12px] md:text-sm text-[#8a7373] mb-12 tracking-[0.3em] opacity-90 uppercase">JUNE 28, 2026</p>
-                        
-                        <div className="space-y-6">
-                            <p className="text-[9px] md:text-[10px] tracking-[0.4em] text-[#8a7373] uppercase font-bold opacity-70">Invitation</p>
-                            <div className="font-serif text-[#452b2b] leading-[1.6] text-base md:text-lg italic opacity-90">
-                                <p className="mb-4">To our dearest friends and family, we would be honored to have you be a part of our special day.</p>
-                                <p>We would like to formally invite you to our wedding!</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="w-full max-w-4xl mx-auto px-6 mb-40">
-                        <div className="flex justify-center mb-10">
-                            <Icon name="CheckCircle2" className="w-12 h-12 text-[#d9c5c7]" strokeWidth={1} />
-                        </div>
-                        <h2 className="font-serif italic text-2xl md:text-3xl text-[#452b2b] mb-6 tracking-tight opacity-90">Will You Share the Joy With Us?</h2>
-                        <p className="font-serif text-[#8a7373] text-base md:text-lg mb-16 leading-relaxed px-4">
-                            Please let us know your plans by May 1st, 2026.
-                        </p>
-                        <div className="thin-hr mb-12 max-w-2xl mx-auto"></div>
-                        <div className="flex flex-col items-center justify-center max-w-2xl mx-auto">
-                            <button 
-                                onClick={() => onNavigate('RSVP')}
-                                className="group relative px-10 md:px-12 py-5 bg-transparent border border-[#d9c5c7] text-[#452b2b] font-bold tracking-[0.3em] uppercase hover:bg-[#452b2b] hover:text-white transition-all duration-500 rounded-sm overflow-hidden text-sm md:text-base"
-                            >
-                                <span className="relative z-10">RSVP Online</span>
-                                <div className="absolute inset-0 bg-[#452b2b] translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out z-0"></div>
-                            </button>
-                            <p className="mt-8 text-[10px] md:text-[11px] tracking-[0.3em] text-[#8a7373] uppercase font-bold italic">
-                                We can't wait to see you there
-                            </p>
-                        </div>
-                        <div className="thin-hr mt-12 max-w-2xl mx-auto"></div>
-                    </div>
-                </div>
-            );
-        };
-
-        const RSVP = () => (
-            <div className="max-w-xl mx-auto animate-fade-in pb-20 pt-10 px-4">
-                <div className="text-center mb-14">
-                    <p className="text-xs tracking-[0.3em] text-[#8a7373] mb-4 uppercase font-bold">Kindly Reply</p>
-                    <h2 className="font-serif italic text-4xl md:text-5xl text-[#452b2b] mb-4">RSVP</h2>
-                </div>
-                <form className="space-y-8 bg-white/50 p-6 md:p-10 rounded-2xl border border-[#f0e6e6]">
-                    <div>
-                        <label className="block text-xs font-bold text-[#8a7373] mb-3 uppercase tracking-[0.2em]">Full Name</label>
-                        <input type="text" className="w-full px-4 py-4 bg-white border border-[#eee0e0] rounded focus:outline-none focus:border-[#d9c5c7] font-serif italic text-lg shadow-none" placeholder="Meredith & Derek" />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-[#8a7373] mb-3 uppercase tracking-[0.2em]">Attendance</label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <label className="cursor-pointer border border-[#eee0e0] rounded p-4 flex items-center justify-center hover:bg-[#fdf7f7] transition-colors">
-                                <input type="radio" name="attending" className="hidden peer" />
-                                <span className="font-serif italic peer-checked:text-[#452b2b] text-[#8a7373]">Joyfully Accepts</span>
-                            </label>
-                            <label className="cursor-pointer border border-[#eee0e0] rounded p-4 flex items-center justify-center hover:bg-[#fdf7f7] transition-colors">
-                                <input type="radio" name="attending" className="hidden peer" />
-                                <span className="font-serif italic peer-checked:text-[#452b2b] text-[#8a7373]">Regretfully Declines</span>
-                            </label>
-                        </div>
-                    </div>
-                    <button type="submit" className="w-full py-5 bg-[#452b2b] text-[#fdf7f7] font-bold tracking-[0.3em] uppercase rounded hover:bg-[#5a3b3b] transition-all duration-300 shadow-none">Submit RSVP</button>
-                </form>
-            </div>
-        );
-
-        const OurStory = () => (
-            <div className="max-w-3xl mx-auto animate-fade-in pb-20 px-4">
-                <div className="text-center mb-20"><h2 className="font-serif text-5xl text-[#452b2b] mb-4 tracking-tight italic">Our Story</h2></div>
-                <div className="space-y-24">
-                    {["How We Met", "Our First Home", "The Proposal"].map((title, index) => (
-                        <div key={index} className={`flex flex-col md:flex-row gap-12 items-center ${index % 2 !== 0 ? 'md:flex-row-reverse' : ''}`}>
-                            <div className="flex-1 text-center md:text-left">
-                                <span className="text-xs tracking-[0.3em] text-[#8a7373] font-bold uppercase">Chronicle</span>
-                                <h3 className="font-serif text-3xl text-[#452b2b] mt-4 mb-6">{title}</h3>
-                                <p className="font-serif text-[#8a7373] leading-relaxed italic text-lg">A beautiful journey that brought us here today.</p>
-                            </div>
-                            <div className="w-40 h-40 md:w-56 md:h-56 rounded-full bg-white border border-[#eee0e0] flex items-center justify-center relative overflow-hidden shadow-none">
-                                <Icon name="Heart" size={48} className="text-[#e6baba]" strokeWidth={1} />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-
-        const QA = () => (
-            <div className="max-w-2xl mx-auto animate-fade-in pb-20 px-4">
-                <div className="text-center mb-16"><h2 className="font-serif text-5xl text-[#452b2b] mb-4 italic">Q & A</h2></div>
-                <div className="space-y-8">
-                    {["Dress Code", "Children", "Parking"].map((q, i) => (
-                        <div key={i} className="bg-white/60 p-8 rounded-2xl border border-[#eee0e0] shadow-none">
-                            <h3 className="font-sans font-bold text-[#452b2b] mb-4 uppercase tracking-widest text-xs">{q}</h3>
-                            <p className="font-serif text-[#8a7373] italic leading-relaxed text-lg">Frequently asked details regarding our special day.</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-
-        const Registry = () => (
-            <div className="max-w-3xl mx-auto animate-fade-in text-center pb-20 px-4">
-                <h2 className="font-serif text-5xl text-[#452b2b] mb-4 italic">Registry</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
-                    <div className="p-12 bg-white rounded-2xl border border-[#eee0e0] shadow-none">
-                        <Icon name="Gift" size={48} className="text-[#e6baba] mx-auto mb-6" strokeWidth={1} />
-                        <h3 className="font-sans font-bold text-xl text-[#452b2b] uppercase tracking-widest">Honeymoon Fund</h3>
-                    </div>
-                    <div className="p-12 bg-white rounded-2xl border border-[#eee0e0] shadow-none">
-                        <Icon name="Home" size={48} className="text-[#e6baba] mx-auto mb-6" strokeWidth={1} />
-                        <h3 className="font-sans font-bold text-xl text-[#452b2b] uppercase tracking-widest">Home Goods</h3>
-                    </div>
-                </div>
-            </div>
-        );
-
-        function App() {
-            const [activeTab, setActiveTab] = useState('Home');
-            const [isMenuOpen, setIsMenuOpen] = useState(false);
-            const navLinks = ['Home', 'RSVP', 'Our Story', 'Q&A', 'Registry'];
-
-            const handleNavigate = (tab) => {
-                setActiveTab(tab);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            };
-
-            return (
-                <div className="min-h-screen bg-[#fdf7f7] font-sans relative">
-                    <ScatteredBlossoms />
-                    <header className="fixed top-0 left-0 right-0 h-16 bg-[#fdf7f7]/80 backdrop-blur-md z-[100] border-b border-[#f0e6e6] px-6 flex items-center justify-between shadow-none">
-                        <button onClick={() => setIsMenuOpen(true)} className="p-2 -ml-2 text-[#452b2b]"><Icon name="Menu" size={24} strokeWidth={1.5} /></button>
-                        <div className="font-sans font-extrabold text-xl text-[#452b2b] tracking-[0.3em] flex-1 text-center">H <span className="ampersand text-3xl">&</span> A</div>
-                        <div className="w-10" />
-                    </header>
-
-                    <div className={`fixed inset-0 z-[110] transition-transform duration-500 ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                        <div className="absolute inset-0 bg-[#452b2b]/10 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)} />
-                        <div className="absolute top-0 left-0 bottom-0 w-80 bg-[#fdf7f7] p-10 flex flex-col shadow-none border-r border-[#f0e6e6]">
-                            <button onClick={() => setIsMenuOpen(false)} className="self-end mb-16 text-[#8a7373]"><Icon name="X" size={28} /></button>
-                            <nav className="flex flex-col gap-8">
-                                {navLinks.map((link) => (
-                                    <button key={link} onClick={() => {handleNavigate(link); setIsMenuOpen(false);}} className={`text-left font-serif text-2xl ${activeTab === link ? 'text-[#452b2b] italic' : 'text-[#8a7373]'}`}>{link}</button>
-                                ))}
-                            </nav>
-                        </div>
-                    </div>
-
-                    <div className="h-16" />
-                    
-                    <nav className="pt-8 pb-8 px-4 sticky top-16 bg-[#fdf7f7]/95 backdrop-blur-sm z-50 border-b border-[#f0e6e6]/50">
-                        <div className="max-w-4xl mx-auto flex justify-center">
-                            <ul className="inline-flex items-center justify-center p-1.5 bg-white/40 rounded-full border border-[#d9c5c7]/30">
-                                {navLinks.map((link) => (
-                                    <li key={link} className="relative">
-                                        <button 
-                                            onClick={() => handleNavigate(link)} 
-                                            className={`relative z-10 px-5 md:px-8 py-2.5 text-[10px] md:text-[11px] font-bold tracking-[0.25em] uppercase transition-all duration-500 rounded-full ${
-                                                activeTab === link 
-                                                ? 'text-[#fdf7f7]' 
-                                                : 'text-[#8a7373] hover:text-[#452b2b]'
-                                            }`}
-                                        >
-                                            {link}
-                                        </button>
-                                        
-                                        {activeTab === link && (
-                                            <div className="absolute inset-0 bg-[#452b2b] rounded-full z-0 animate-fade-in" />
-                                        )}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        <div className="flex justify-center mt-6">
-                           <div className="w-12 h-[1px] bg-[#d9c5c7]/40"></div>
-                           <Icon name="Flower2" size={8} className="mx-4 text-[#d9c5c7]/40" />
-                           <div className="w-12 h-[1px] bg-[#d9c5c7]/40"></div>
+                <div className="relative">
+                    {/* Persistent Header */}
+                    <nav className={`fixed top-0 w-full z-50 transition-all duration-500 px-6 py-4 flex justify-between items-center ${scrolled ? 'bg-white border-b border-gray-200 py-3' : 'bg-transparent'}`}>
+                        <div className="font-black text-2xl tracking-tighter">H+A</div>
+                        <div className="flex gap-8 text-[10px] font-black uppercase tracking-[0.2em]">
+                            <a href="#story" className="hover:line-through transition-all">Story</a>
+                            <a href="#details" className="hover:line-through transition-all">Details</a>
+                            <a href="#rsvp" className="bg-black text-white px-4 py-1.5 -mt-1 hover:bg-gray-800 transition-colors">RSVP</a>
                         </div>
                     </nav>
 
-                    <main className="max-w-5xl mx-auto px-6 pt-12 relative z-10">
-                        {activeTab === 'Home' && <Home onNavigate={handleNavigate} />}
-                        {activeTab === 'RSVP' && <RSVP />}
-                        {activeTab === 'Our Story' && <OurStory />}
-                        {activeTab === 'Q&A' && <QA />}
-                        {activeTab === 'Registry' && <Registry />}
-                    </main>
+                    {/* Hero Section */}
+                    <section className="min-h-screen pt-32 px-6 flex flex-col">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
+                            <div className="lg:col-span-7 overflow-hidden">
+                                <h1 className="text-[12vw] lg:text-[10vw] font-black leading-[0.85] tracking-tighter uppercase reveal-text">
+                                    HANNAH<br/>
+                                    <span className="text-gray-300">&</span> AURELIUS
+                                </h1>
+                            </div>
+                            <div className="lg:col-span-5 pb-4">
+                                <p className="font-serif italic text-2xl lg:text-3xl text-gray-600 max-w-sm">
+                                    A celebration of love in the heart of Kyoto.
+                                </p>
+                            </div>
+                        </div>
 
-                    <footer className="mt-40 text-center pb-20 relative z-10">
-                        <ExactFloralEmblem className="w-16 h-16 opacity-60 mx-auto mb-6 text-[#d9c5c7]" />
-                        <h2 className="font-sans font-extrabold text-4xl text-[#452b2b] tracking-widest">H <span className="ampersand text-5xl">&</span> A</h2>
-                        <p className="font-serif text-base text-[#8a7373] italic tracking-[0.4em] mt-4 uppercase">06.28.2026</p>
+                        {/* Featured Image */}
+                        <div className="mt-12 mb-24 lg:grid lg:grid-cols-12 gap-8">
+                            <div className="lg:col-start-2 lg:col-span-10 relative">
+                                <div className="img-zoom aspect-[4/5] lg:aspect-[16/9] w-full bg-gray-100 shadow-2xl">
+                                    <img 
+                                        src="image_f14c23.png" 
+                                        alt="Hannah and Aurelius" 
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1600&q=80"; }}
+                                    />
+                                </div>
+                                <div className="absolute -bottom-8 -right-4 bg-[#1a1a1a] text-white p-8 hidden lg:block">
+                                    <p className="text-[10px] tracking-[0.4em] uppercase font-black mb-2">The Date</p>
+                                    <p className="text-4xl font-black tracking-tighter">06.28.26</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Details Grid */}
+                    <section id="details" className="px-6 py-24 bg-white border-y border-gray-100">
+                        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-16">
+                            <div>
+                                <span className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-400 block mb-6">Location</span>
+                                <h3 className="text-4xl font-black uppercase tracking-tighter mb-4">The Garden<br/>Pavilion</h3>
+                                <p className="font-serif text-lg italic text-gray-600">Higashiyama District, Kyoto</p>
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-400 block mb-6">Schedule</span>
+                                <h3 className="text-4xl font-black uppercase tracking-tighter mb-4">4:00 PM</h3>
+                                <p className="font-serif text-lg italic text-gray-600">Ceremony followed by dinner and dancing beneath the moon.</p>
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-400 block mb-6">Attire</span>
+                                <h3 className="text-4xl font-black uppercase tracking-tighter mb-4">Cocktail<br/>Attire</h3>
+                                <p className="font-serif text-lg italic text-gray-600">In shades of cherry blossom and stone.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Minimalist RSVP CTA */}
+                    <section id="rsvp" className="py-40 px-6 text-center">
+                        <div className="inline-block relative">
+                            <span className="font-script text-7xl text-gray-200 absolute -top-12 -left-12 -z-10">RSVP</span>
+                            <h2 className="text-6xl lg:text-8xl font-black tracking-tighter uppercase mb-8">Are you joining us?</h2>
+                        </div>
+                        <div className="mt-8 flex flex-col items-center">
+                            <button className="bg-black text-white px-12 py-5 text-xs font-black uppercase tracking-[0.5em] hover:bg-gray-800 transition-all hover:px-16">
+                                Confirm Attendance
+                            </button>
+                            <p className="mt-6 font-serif italic text-gray-400">Kindly reply by May 15, 2026</p>
+                        </div>
+                    </section>
+
+                    {/* Footer Editorial */}
+                    <footer className="px-6 py-12 border-t border-gray-200 flex flex-col lg:flex-row justify-between items-end gap-8">
+                        <div>
+                            <p className="text-[10vw] font-black leading-none tracking-tighter text-gray-100 select-none">KYOTO</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-2">Designed for</p>
+                            <p className="text-xl font-black uppercase tracking-tighter">Hannah & Aurelius</p>
+                        </div>
                     </footer>
                 </div>
             );
-        }
+        };
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
